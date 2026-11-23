@@ -5,6 +5,7 @@ import {
   type SlideTransition,
   Step,
   Steps,
+  useIsActivePage,
   useSlidePageNumber,
 } from '@open-slide/core';
 import type { CSSProperties, ReactNode } from 'react';
@@ -90,8 +91,49 @@ const Footer = ({ section, onAccent = false }: { section: string; onAccent?: boo
   );
 };
 
+// ---------------------------------------------------------------- motion
+// Animasi CSS hanya jalan di halaman yang sedang ditonton (kelas `rti-on` dari useIsActivePage).
+// Thumbnail, overview, dan ekspor PDF tidak punya kelas itu, jadi tampil dalam keadaan akhir.
+// Elemen di dalam <Step> baru beranimasi saat step-nya terbuka (data-osd-step="revealed").
+const MOTION_CSS = `
+@keyframes rti-pop { from { opacity: 0; transform: translateY(14px) scale(0.92); } to { opacity: 1; transform: none; } }
+@keyframes rti-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes rti-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes rti-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes rti-appear { from { opacity: 0; } to { opacity: 1; } }
+@keyframes rti-flow { to { stroke-dashoffset: -26; } }
+@keyframes rti-sold { 0% { opacity: 0; transform: translateY(14px) scale(0.92); } 18%, 55% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-6px); } }
+.rti-flow { opacity: 0; }
+.rti-ghost { opacity: 0; }
+.rti-on .rti-pop { animation: rti-pop 460ms cubic-bezier(0.2, 0.8, 0.2, 1) var(--d, 0ms) both; }
+.rti-on .rti-rise { animation: rti-rise 420ms cubic-bezier(0, 0, 0.2, 1) var(--d, 0ms) both; }
+.rti-on .rti-grow { transform-origin: left center; animation: rti-grow 900ms cubic-bezier(0.4, 0, 0.2, 1) var(--d, 0ms) both; }
+.rti-on .rti-draw { stroke-dasharray: 1; animation: rti-draw 560ms cubic-bezier(0.4, 0, 0.2, 1) var(--d, 0ms) both; }
+.rti-on .rti-appear { animation: rti-appear 240ms ease-out var(--d, 0ms) both; }
+.rti-on .rti-flow { animation: rti-appear 300ms ease-out var(--d, 0ms) forwards, rti-flow 1.4s linear var(--d, 0ms) infinite; }
+.rti-on .rti-ghost { animation: rti-sold 2400ms ease-in-out var(--d, 0ms) both; }
+.rti-on [data-osd-step="pending"] * { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .rti-on * { animation: none !important; }
+  .rti-flow, .rti-ghost { opacity: 0 !important; }
+}`;
+const STYLE_ID = 'osd-styles-integrasi-toko-roti';
+if (typeof document !== 'undefined') {
+  let style = document.getElementById(STYLE_ID);
+  if (!style) {
+    style = document.createElement('style');
+    style.id = STYLE_ID;
+    document.head.appendChild(style);
+  }
+  if (style.textContent !== MOTION_CSS) style.textContent = MOTION_CSS;
+}
+
+// delay (ms) sebagai CSS var untuk kelas animasi di atas
+const delay = (ms: number) => ({ '--d': `${ms}ms` }) as CSSProperties;
+
 const Frame = ({ section, children }: { section: string; children: ReactNode }) => (
   <div
+    className={useIsActivePage() ? 'rti-on' : undefined}
     style={{
       width: '100%',
       height: '100%',
@@ -306,8 +348,12 @@ const Profil: Page = () => (
   </Frame>
 );
 
-const Loaf = () => (
-  <div style={{ width: 72, height: 40, borderRadius: '22px 22px 6px 6px', background: 'var(--osd-accent)' }} />
+// d = delay animasi (ms); ghost = roti yang muncul lalu habis terjual (tidak terlihat di keadaan akhir)
+const Loaf = ({ d = 0, ghost = false }: { d?: number; ghost?: boolean }) => (
+  <div
+    className={ghost ? 'rti-ghost' : 'rti-pop'}
+    style={{ width: 72, height: 40, borderRadius: '22px 22px 6px 6px', background: 'var(--osd-accent)', ...delay(d) }}
+  />
 );
 
 const Shelf = ({ children }: { children?: ReactNode }) => (
@@ -340,11 +386,13 @@ const Rack = ({ children }: { children: ReactNode }) => (
   </div>
 );
 
-const Case = ({ head, body, children }: { head: string; body: string; children: ReactNode }) => (
+const Case = ({ head, body, d, children }: { head: string; body: string; d: number; children: ReactNode }) => (
   <div>
     <Rack>{children}</Rack>
-    <h3 style={{ ...display, fontSize: 56, margin: '36px 0 12px' }}>{head}</h3>
-    <p style={{ fontSize: 32, lineHeight: 1.5, margin: 0, maxWidth: 720 }}>{body}</p>
+    <div className="rti-rise" style={delay(d)}>
+      <h3 style={{ ...display, fontSize: 56, margin: '36px 0 12px' }}>{head}</h3>
+      <p style={{ fontSize: 32, lineHeight: 1.5, margin: 0, maxWidth: 720 }}>{body}</p>
+    </div>
   </div>
 );
 
@@ -352,41 +400,49 @@ const Masalah: Page = () => (
   <Frame section="Organisasi">
     <Title>Produksi masih berdasarkan perkiraan</Title>
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 64 }}>
-      <Case head="Terlalu banyak" body="Roti sisa masih ada di rak saat outlet tutup pukul 21.00.">
+      <Case head="Terlalu banyak" body="Roti sisa masih ada di rak saat outlet tutup pukul 21.00." d={1100}>
         <Shelf>
-          <Loaf />
-          <Loaf />
-          <Loaf />
-          <Loaf />
-          <Loaf />
-          <Loaf />
-          <Loaf />
-          <Loaf />
+          <Loaf d={200} />
+          <Loaf d={250} />
+          <Loaf d={300} />
+          <Loaf d={350} />
+          <Loaf d={400} />
+          <Loaf d={450} />
+          <Loaf d={500} />
+          <Loaf d={550} />
         </Shelf>
         <Shelf>
-          <Loaf />
-          <Loaf />
-          <Loaf />
-          <Loaf />
-          <Loaf />
-          <Loaf />
-          <Loaf />
+          <Loaf d={600} />
+          <Loaf d={650} />
+          <Loaf d={700} />
+          <Loaf d={750} />
+          <Loaf d={800} />
+          <Loaf d={850} />
+          <Loaf d={900} />
         </Shelf>
       </Case>
-      <Case head="Terlalu sedikit" body="Produk yang laris habis sebelum siang, pembeli pulang tanpa membeli.">
+      <Case head="Terlalu sedikit" body="Produk yang laris habis sebelum siang, pembeli pulang tanpa membeli." d={2600}>
         <Shelf>
-          <Loaf />
+          <Loaf d={200} />
+          <Loaf d={260} ghost />
+          <Loaf d={320} ghost />
+          <Loaf d={380} ghost />
         </Shelf>
-        <Shelf />
+        <Shelf>
+          <Loaf d={440} ghost />
+          <Loaf d={500} ghost />
+        </Shelf>
       </Case>
     </div>
     <p
+      className="rti-rise"
       style={{
         fontSize: 36,
         lineHeight: 1.5,
         margin: '56px 0 0',
         paddingTop: 28,
         borderTop: `1px solid ${LINE}`,
+        ...delay(3000),
       }}
     >
       Data penjualan tersebar di empat tempat yang tidak terhubung: kasir, aplikasi ojek online, WhatsApp, dan
@@ -615,22 +671,37 @@ const MoscowCol = ({
   count,
   ids,
   desc,
+  d,
 }: {
   level: Level;
   count: string;
   ids: string;
   desc: string;
+  d: number;
 }) => {
   const strong = level === 'Must';
   const rule = strong ? 'var(--osd-accent)' : level === 'Should' ? 'var(--osd-text)' : MUTED;
   return (
-    <div style={{ borderTop: `4px solid ${rule}`, paddingTop: 28 }}>
-      <div style={{ ...display, fontSize: 168, lineHeight: 1, color: strong ? 'var(--osd-accent)' : 'var(--osd-text)' }}>
+    <div>
+      <div className="rti-grow" style={{ height: 4, background: rule, ...delay(d) }} />
+      <div
+        className="rti-pop"
+        style={{
+          ...display,
+          fontSize: 168,
+          lineHeight: 1,
+          marginTop: 28,
+          color: strong ? 'var(--osd-accent)' : 'var(--osd-text)',
+          ...delay(d + 250),
+        }}
+      >
         {count}
       </div>
-      <div style={{ fontSize: 36, fontWeight: 600, marginTop: 20 }}>{level}</div>
-      <p style={{ fontSize: 28, lineHeight: 1.45, margin: '12px 0 0', minHeight: 82 }}>{desc}</p>
-      <div style={{ fontFamily: MONO, fontSize: 24, color: MUTED, marginTop: 20 }}>{ids}</div>
+      <div className="rti-rise" style={delay(d + 450)}>
+        <div style={{ fontSize: 36, fontWeight: 600, marginTop: 20 }}>{level}</div>
+        <p style={{ fontSize: 28, lineHeight: 1.45, margin: '12px 0 0', minHeight: 82 }}>{desc}</p>
+        <div style={{ fontFamily: MONO, fontSize: 24, color: MUTED, marginTop: 20 }}>{ids}</div>
+      </div>
     </div>
   );
 };
@@ -639,10 +710,10 @@ const RingkasanMoscow: Page = () => (
   <Frame section="Kebutuhan">
     <Title>Prioritas MoSCoW</Title>
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', columnGap: 56 }}>
-      <MoscowCol level="Must" count="5" desc="Wajib ada agar rencana produksi bisa berjalan." ids="F1 F2 F3 F4 NF1" />
-      <MoscowCol level="Should" count="4" desc="Penting, tetapi rencana tetap jalan tanpanya." ids="F5 F6 NF2 NF3" />
-      <MoscowCol level="Could" count="2" desc="Dikerjakan bila waktu dan biaya cukup." ids="F7 NF4" />
-      <MoscowCol level="Won't" count="1" desc="Tidak dikerjakan pada fase ini." ids="W1" />
+      <MoscowCol d={100} level="Must" count="5" desc="Wajib ada agar rencana produksi bisa berjalan." ids="F1 F2 F3 F4 NF1" />
+      <MoscowCol d={300} level="Should" count="4" desc="Penting, tetapi rencana tetap jalan tanpanya." ids="F5 F6 NF2 NF3" />
+      <MoscowCol d={500} level="Could" count="2" desc="Dikerjakan bila waktu dan biaya cukup." ids="F7 NF4" />
+      <MoscowCol d={700} level="Won't" count="1" desc="Tidak dikerjakan pada fase ini." ids="W1" />
     </div>
   </Frame>
 );
@@ -666,6 +737,7 @@ const Node = ({
   title,
   sub,
   tone = 'plain',
+  d = 0,
 }: {
   x: number;
   y: number;
@@ -674,9 +746,12 @@ const Node = ({
   title: string;
   sub: string;
   tone?: NodeTone;
+  d?: number;
 }) => (
   <div
+    className="rti-pop"
     style={{
+      ...delay(d),
       position: 'absolute',
       left: x,
       top: y,
@@ -701,12 +776,43 @@ const Node = ({
 );
 
 // Garis bezier horizontal + kepala panah segitiga (tanpa <marker> agar aman di thumbnail).
-const Edge = ({ x1, y1, x2, y2, color }: { x1: number; y1: number; x2: number; y2: number; color: string }) => {
+// Saat aktif: garis tergambar (draw), kepala panah muncul, lalu titik data mengalir di sepanjang garis.
+const Edge = ({
+  x1,
+  y1,
+  x2,
+  y2,
+  color,
+  d = 0,
+}: {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  color: string;
+  d?: number;
+}) => {
   const mx = (x1 + x2) / 2;
+  const path = `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2 - 10},${y2}`;
   return (
     <g>
-      <path d={`M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2 - 10},${y2}`} fill="none" stroke={color} strokeWidth={2.5} />
-      <polygon points={`${x2 - 14},${y2 - 8} ${x2},${y2} ${x2 - 14},${y2 + 8}`} fill={color} />
+      <path className="rti-draw" pathLength={1} style={delay(d)} d={path} fill="none" stroke={color} strokeWidth={2.5} />
+      <polygon
+        className="rti-appear"
+        style={delay(d + 480)}
+        points={`${x2 - 14},${y2 - 8} ${x2},${y2} ${x2 - 14},${y2 + 8}`}
+        fill={color}
+      />
+      <path
+        className="rti-flow"
+        style={delay(d + 600)}
+        d={path}
+        fill="none"
+        stroke={color}
+        strokeWidth={7}
+        strokeLinecap="round"
+        strokeDasharray="0.1 26"
+      />
     </g>
   );
 };
@@ -719,40 +825,40 @@ const PetaAliran: Page = () => (
     <Title>Peta aliran data</Title>
     <div style={{ position: 'relative', width: 1680, height: 608 }}>
       {/* sumber: tampil sejak awal */}
-      <Node x={0} y={0} w={380} h={88} title="POS kasir" sub="Moka API · transaksi" />
-      <Node x={0} y={104} w={380} h={88} title="GoFood & GrabFood" sub="Ekspor CSV · pesanan" />
-      <Node x={0} y={208} w={380} h={88} title="Pre-order kue" sub="Form → Sheets · pesanan" />
-      <Node x={0} y={312} w={380} h={88} title="Resep & produksi" sub="Sheets API · resep" />
-      <Node x={0} y={416} w={380} h={88} title="Stok bahan baku" sub="Unggah Excel · stok" />
-      <Node x={0} y={520} w={380} h={88} title="Catatan roti sisa" sub="Form → Sheets · sisa" />
+      <Node x={0} y={0} w={380} h={88} d={100} title="POS kasir" sub="Moka API · transaksi" />
+      <Node x={0} y={104} w={380} h={88} d={170} title="GoFood & GrabFood" sub="Ekspor CSV · pesanan" />
+      <Node x={0} y={208} w={380} h={88} d={240} title="Pre-order kue" sub="Form → Sheets · pesanan" />
+      <Node x={0} y={312} w={380} h={88} d={310} title="Resep & produksi" sub="Sheets API · resep" />
+      <Node x={0} y={416} w={380} h={88} d={380} title="Stok bahan baku" sub="Unggah Excel · stok" />
+      <Node x={0} y={520} w={380} h={88} d={450} title="Catatan roti sisa" sub="Form → Sheets · sisa" />
       <Steps>
         <Step>
           <div style={LAYER}>
             <svg width={1680} height={608} style={{ position: 'absolute', left: 0, top: 0 }}>
-              <Edge x1={380} y1={44} x2={500} y2={264} color={MUTED} />
-              <Edge x1={380} y1={148} x2={500} y2={280} color={MUTED} />
-              <Edge x1={380} y1={252} x2={500} y2={296} color={MUTED} />
-              <Edge x1={380} y1={356} x2={500} y2={312} color={MUTED} />
-              <Edge x1={380} y1={460} x2={500} y2={328} color={MUTED} />
-              <Edge x1={380} y1={564} x2={500} y2={344} color={MUTED} />
-              <Edge x1={760} y1={304} x2={840} y2={304} color={MUTED} />
+              <Edge x1={380} y1={44} x2={500} y2={264} color={MUTED} d={0} />
+              <Edge x1={380} y1={148} x2={500} y2={280} color={MUTED} d={60} />
+              <Edge x1={380} y1={252} x2={500} y2={296} color={MUTED} d={120} />
+              <Edge x1={380} y1={356} x2={500} y2={312} color={MUTED} d={180} />
+              <Edge x1={380} y1={460} x2={500} y2={328} color={MUTED} d={240} />
+              <Edge x1={380} y1={564} x2={500} y2={344} color={MUTED} d={300} />
+              <Edge x1={760} y1={304} x2={840} y2={304} color={MUTED} d={700} />
             </svg>
-            <Node x={500} y={234} w={260} h={140} title="ETL terjadwal" sub="n8n · 21.30" tone="outline" />
-            <Node x={840} y={234} w={260} h={140} title="Basis data terpusat" sub="PostgreSQL" tone="accent" />
+            <Node x={500} y={234} w={260} h={140} title="ETL terjadwal" sub="n8n · 21.30" tone="outline" d={450} />
+            <Node x={840} y={234} w={260} h={140} title="Basis data terpusat" sub="PostgreSQL" tone="accent" d={1100} />
           </div>
         </Step>
         <Step>
           <div style={LAYER}>
             <svg width={1680} height={608} style={{ position: 'absolute', left: 0, top: 0 }}>
-              <Edge x1={1100} y1={280} x2={1220} y2={112} color={ACCENT_HEX} />
-              <Edge x1={1100} y1={296} x2={1220} y2={240} color={ACCENT_HEX} />
-              <Edge x1={1100} y1={312} x2={1220} y2={368} color={ACCENT_HEX} />
-              <Edge x1={1100} y1={328} x2={1220} y2={496} color={ACCENT_HEX} />
+              <Edge x1={1100} y1={280} x2={1220} y2={112} color={ACCENT_HEX} d={0} />
+              <Edge x1={1100} y1={296} x2={1220} y2={240} color={ACCENT_HEX} d={80} />
+              <Edge x1={1100} y1={312} x2={1220} y2={368} color={ACCENT_HEX} d={160} />
+              <Edge x1={1100} y1={328} x2={1220} y2={496} color={ACCENT_HEX} d={240} />
             </svg>
-            <Node x={1220} y={62} w={460} h={100} title="Rencana produksi" sub="Sheet dapur · siap pukul 04.00" />
-            <Node x={1220} y={190} w={460} h={100} title="Daftar belanja bahan" sub="Sheet gudang · Staf Gudang" />
-            <Node x={1220} y={318} w={460} h={100} title="Laporan pagi" sub="Email pemilik · pukul 06.00" />
-            <Node x={1220} y={446} w={460} h={100} title="Jurnal.id" sub="Jurnal API · Bagian Keuangan" />
+            <Node x={1220} y={62} w={460} h={100} d={450} title="Rencana produksi" sub="Sheet dapur · siap pukul 04.00" />
+            <Node x={1220} y={190} w={460} h={100} d={550} title="Daftar belanja bahan" sub="Sheet gudang · Staf Gudang" />
+            <Node x={1220} y={318} w={460} h={100} d={650} title="Laporan pagi" sub="Email pemilik · pukul 06.00" />
+            <Node x={1220} y={446} w={460} h={100} d={750} title="Jurnal.id" sub="Jurnal API · Bagian Keuangan" />
           </div>
         </Step>
       </Steps>
@@ -818,10 +924,22 @@ const Pemetaan: Page = () => (
 
 // ---------------------------------------------------------------- 16 penutup
 
-const TimePoint = ({ time, label, strong = false }: { time: string; label: string; strong?: boolean }) => (
+const TimePoint = ({
+  time,
+  label,
+  strong = false,
+  d,
+}: {
+  time: string;
+  label: string;
+  strong?: boolean;
+  d: number;
+}) => (
   <div style={{ position: 'relative', paddingTop: 52 }}>
     <div
+      className="rti-pop"
       style={{
+        ...delay(d),
         position: 'absolute',
         top: 0,
         left: 0,
@@ -833,17 +951,19 @@ const TimePoint = ({ time, label, strong = false }: { time: string; label: strin
         border: `3px solid ${strong ? 'var(--osd-accent)' : 'var(--osd-text)'}`,
       }}
     />
-    <div
-      style={{
-        ...display,
-        fontSize: 56,
-        color: strong ? 'var(--osd-accent)' : 'var(--osd-text)',
-        fontVariantNumeric: 'tabular-nums',
-      }}
-    >
-      {time}
+    <div className="rti-rise" style={delay(d + 120)}>
+      <div
+        style={{
+          ...display,
+          fontSize: 56,
+          color: strong ? 'var(--osd-accent)' : 'var(--osd-text)',
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {time}
+      </div>
+      <p style={{ fontSize: 28, lineHeight: 1.4, margin: '12px 24px 0 0' }}>{label}</p>
     </div>
-    <p style={{ fontSize: 28, lineHeight: 1.4, margin: '12px 24px 0 0' }}>{label}</p>
   </div>
 );
 
@@ -851,14 +971,17 @@ const Penutup: Page = () => (
   <Frame section="Penutup">
     <Title>Alur harian setelah integrasi</Title>
     <div style={{ position: 'relative', marginTop: 24 }}>
-      <div style={{ position: 'absolute', top: 12, left: 0, right: 0, height: 2, background: LINE }} />
+      <div
+        className="rti-grow"
+        style={{ position: 'absolute', top: 12, left: 0, right: 0, height: 2, background: LINE, animationDuration: '1600ms' }}
+      />
       <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)' }}>
-        <TimePoint time="21.00" label="Outlet tutup" />
-        <TimePoint time="21.30" label="ETL menarik data semua kanal" />
-        <TimePoint time="22.00" label="Rencana produksi dan daftar belanja dihitung" />
-        <TimePoint time="04.00" label="Dapur mulai produksi" strong />
-        <TimePoint time="06.00" label="Laporan pagi ke pemilik" />
-        <TimePoint time="07.00" label="Outlet buka" />
+        <TimePoint d={100} time="21.00" label="Outlet tutup" />
+        <TimePoint d={370} time="21.30" label="ETL menarik data semua kanal" />
+        <TimePoint d={640} time="22.00" label="Rencana produksi dan daftar belanja dihitung" />
+        <TimePoint d={910} time="04.00" label="Dapur mulai produksi" strong />
+        <TimePoint d={1180} time="06.00" label="Laporan pagi ke pemilik" />
+        <TimePoint d={1450} time="07.00" label="Outlet buka" />
       </div>
     </div>
     <div
@@ -872,8 +995,12 @@ const Penutup: Page = () => (
         justifyContent: 'space-between',
       }}
     >
-      <div style={{ ...display, fontSize: 96 }}>Terima kasih</div>
-      <div style={{ fontSize: 32, color: MUTED }}>Pertanyaan dan masukan dipersilakan.</div>
+      <div className="rti-rise" style={{ ...display, fontSize: 96, ...delay(1900) }}>
+        Terima kasih
+      </div>
+      <div className="rti-rise" style={{ fontSize: 32, color: MUTED, ...delay(2100) }}>
+        Pertanyaan dan masukan dipersilakan.
+      </div>
     </div>
   </Frame>
 );
