@@ -1,0 +1,28 @@
+node_modules
+dist
+.DS_Store
+
+# Skill pihak ketiga (taste-skill, ±40 MB) — pasang ulang dengan `npx skills add`
+.agents/skills/design-taste-frontend/
+.claude/skills/design-taste-frontend
+skills-lock.json
+.taste-skill/
+.ecc-design/
+
+# Lokal / editor
+.claude/settings.local.json
+.env
+.env.*
+*.log
+.vscode/
+.idea/
+Thumbs.db
+
+# agents
+.agents/
+.claude/
+AGENTS.md
+CLAUDE.md
+
+# docs
+docs/
