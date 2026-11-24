@@ -320,7 +320,7 @@ const Part1: Page = () => (
   <SectionPage
     part="Bagian 01"
     title="Organisasi"
-    sub="Toko Roti Nivla adalah usaha fiktif yang dibuat untuk tugas ini, dengan masalah yang umum di toko roti kecil."
+    sub="Toko Roti Nivla adalah toko roti milik kerabat saya, dengan masalah yang umum di toko roti kecil."
   />
 );
 
@@ -1032,10 +1032,10 @@ export default [
 ] satisfies Page[];
 
 export const notes: (string | undefined)[] = [
-  `Selamat pagi. Saya akan mempresentasikan rancangan integrasi data untuk Toko Roti Nivla, sebuah usaha fiktif.
+  `Selamat pagi. Saya akan mempresentasikan rancangan integrasi data untuk Toko Roti Nivla, toko roti milik kerabat saya.
 Angka 04.00 di kanan adalah inti tugas ini: jam dapur mulai produksi, sehingga rencana produksi harus sudah siap sebelum jam itu.`,
   `Presentasi ini mengikuti empat instruksi tugas: organisasi dan tujuannya, inventaris sistem, kebutuhan dengan MoSCoW, lalu peta aliran data dan pemetaan field.`,
-  `Bagian pertama: organisasinya. Toko Roti Nivla fiktif, tetapi masalahnya umum di toko roti kecil.`,
+  `Bagian pertama: organisasinya. Toko Roti Nivla adalah toko roti milik kerabat saya, dan masalahnya umum di toko roti kecil.`,
   `Toko Roti Nivla punya satu dapur pusat dan dua outlet. Produksi mulai pukul 04.00, outlet buka 07.00 sampai 21.00.
 Pesanan datang dari kasir, GoFood, GrabFood, dan pre-order lewat WhatsApp.`,
   `Masalahnya ada dua sisi. Kalau produksi kebanyakan, roti sisa terbuang karena roti cepat basi. Kalau kurang, produk laris habis sebelum siang.
