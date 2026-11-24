@@ -9,6 +9,8 @@ import {
   useSlidePageNumber,
 } from '@open-slide/core';
 import type { CSSProperties, ReactNode } from 'react';
+import figtreeUrl from './assets/figtree-latin.woff2';
+import frauncesUrl from './assets/fraunces-latin.woff2';
 
 // Design system: palet "flour-terracotta" + Fraunces/Figtree (lihat docs/plan-slide-toko-roti.md §7b)
 export const design: DesignSystem = {
@@ -27,18 +29,23 @@ const LINE = '#d6cab6';
 const ACCENT_INK = '#ffffff';
 const MONO = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
 
-const FONT_HREF =
-  'https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,400..600,0..100&family=Figtree:wght@400;600&display=swap';
-const FONT_LINK_ID = 'osd-webfont-integrasi-toko-roti';
+// Font disimpan lokal (subset latin, lisensi SIL OFL) supaya deck tetap benar tanpa internet.
+const FONT_CSS = `
+@font-face { font-family: 'Fraunces'; font-style: normal; font-weight: 400 600; font-display: swap; src: url(${frauncesUrl}) format('woff2'); }
+@font-face { font-family: 'Figtree'; font-style: normal; font-weight: 400 600; font-display: swap; src: url(${figtreeUrl}) format('woff2'); }`;
+const FONT_STYLE_ID = 'osd-webfont-integrasi-toko-roti';
 if (typeof document !== 'undefined') {
-  let link = document.getElementById(FONT_LINK_ID) as HTMLLinkElement | null;
-  if (!link) {
-    link = document.createElement('link');
-    link.id = FONT_LINK_ID;
-    link.rel = 'stylesheet';
-    document.head.appendChild(link);
+  let el = document.getElementById(FONT_STYLE_ID);
+  if (el && el.tagName !== 'STYLE') {
+    el.remove(); // sisa <link> Google Fonts dari versi sebelumnya (HMR)
+    el = null;
   }
-  if (link.href !== FONT_HREF) link.href = FONT_HREF;
+  if (!el) {
+    el = document.createElement('style');
+    el.id = FONT_STYLE_ID;
+    document.head.appendChild(el);
+  }
+  if (el.textContent !== FONT_CSS) el.textContent = FONT_CSS;
 }
 
 const EASE_OUT = 'cubic-bezier(0, 0, 0.2, 1)';
@@ -633,25 +640,25 @@ const NonFungsional: Page = () => (
     <Row cols={NF_COLS}>
       <b style={{ fontWeight: 600 }}>NF1</b>
       <span>Ketepatan waktu</span>
-      <span>Rencana produksi siap paling lambat pukul 04.00</span>
+      <span>Rencana produksi siap paling lambat 04.00, 30 hari berturut-turut</span>
       <span><Moscow level="Must" /></span>
     </Row>
     <Row cols={NF_COLS}>
       <b style={{ fontWeight: 600 }}>NF2</b>
       <span>Kualitas data</span>
-      <span>Transaksi duplikat ditolak; produk tak dikenal ditandai untuk dicek</span>
+      <span>0 transaksi duplikat; produk tak dikenal masuk daftar cek harian</span>
       <span><Moscow level="Should" /></span>
     </Row>
     <Row cols={NF_COLS}>
       <b style={{ fontWeight: 600 }}>NF3</b>
       <span>Keamanan</span>
-      <span>Akses per peran; nomor HP pelanggan hanya terlihat Admin Online</span>
+      <span>Akses per peran; nomor HP pelanggan terbuka untuk 1 peran saja (Admin Online)</span>
       <span><Moscow level="Should" /></span>
     </Row>
     <Row cols={NF_COLS}>
       <b style={{ fontWeight: 600 }}>NF4</b>
       <span>Kegunaan</span>
-      <span>Rencana produksi dan laporan dapat dibuka di HP</span>
+      <span>Laporan terbaca di HP tanpa zoom, dimuat di bawah 5 detik</span>
       <span><Moscow level="Could" /></span>
     </Row>
     <Row cols={NF_COLS}>
@@ -885,37 +892,37 @@ const Pemetaan: Page = () => (
     </Row>
     <Row cols={MAP_COLS}>
       <span style={{ color: MUTED }}>1</span>
-      <Field top="Moka POS" field="item_name" />
+      <Field top="Moka POS · TEXT" field="item_name" />
       <Field top="VARCHAR" field="dim_produk.kode_produk" />
       <span>Lookup tabel alias nama produk</span>
     </Row>
     <Row cols={MAP_COLS}>
       <span style={{ color: MUTED }}>2</span>
-      <Field top="Moka POS" field="created_at" />
+      <Field top="Moka POS · TIMESTAMP UTC" field="created_at" />
       <Field top="DATE" field="fakta_penjualan.tanggal" />
       <span>UTC → WIB, ambil tanggalnya</span>
     </Row>
     <Row cols={MAP_COLS}>
       <span style={{ color: MUTED }}>3</span>
-      <Field top="GoFood" field="order_id" />
+      <Field top="GoFood CSV · TEXT" field="order_id" />
       <Field top="VARCHAR" field="fakta_penjualan.id_transaksi" />
       <span>Tambah prefix GF- agar unik</span>
     </Row>
     <Row cols={MAP_COLS}>
       <span style={{ color: MUTED }}>4</span>
-      <Field top="GoFood" field="gross_amount" />
+      <Field top="GoFood CSV · TEXT angka" field="gross_amount" />
       <Field top="NUMERIC" field="fakta_penjualan.nilai_bersih" />
-      <span>Dikurangi komisi platform</span>
+      <span>Parse angka, kurangi komisi platform</span>
     </Row>
     <Row cols={MAP_COLS}>
       <span style={{ color: MUTED }}>5</span>
-      <Field top="Google Form pre-order" field="Tanggal ambil" />
+      <Field top="Google Form · TEXT" field="Tanggal ambil" />
       <Field top="DATE" field="pesanan.tanggal_ambil" />
       <span>Teks dd/mm/yyyy → DATE</span>
     </Row>
     <Row cols={MAP_COLS}>
       <span style={{ color: MUTED }}>6</span>
-      <Field top="Sheet resep" field="takaran_gram" />
+      <Field top="Sheet resep · NUMBER (gram)" field="takaran_gram" />
       <Field top="NUMERIC" field="bom.qty_kg_per_pcs" />
       <span>÷ pcs per adonan ÷ 1000</span>
     </Row>
